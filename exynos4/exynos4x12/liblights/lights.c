@@ -21,7 +21,7 @@
 //#define LOG_NDEBUG 0
 
 #include <cutils/log.h>
-
+#include <cutils/properties.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -33,6 +33,10 @@
 #include <sys/types.h>
 
 #include <hardware/lights.h>
+
+#ifndef LIBLIGHTS_SUPPORT_CHARGING_LED
+#define LIBLIGHTS_SUPPORT_CHARGING_LED 1
+#endif
 
 /******************************************************************************/
 
@@ -301,8 +305,17 @@ static int open_lights(const struct hw_module_t *module, char const *name,
         set_light = set_light_leds_notifications;
     else if (0 == strcmp(LIGHT_ID_ATTENTION, name))
         set_light = set_light_leds_attention;
-    else if (0 == strcmp(LIGHT_ID_BATTERY, name))
-        set_light = set_light_battery;
+#if LIBLIGHTS_SUPPORT_CHARGING_LED 
+    else if (0 == strcmp(LIGHT_ID_BATTERY, name)) {
+        char value[PROPERTY_VALUE_MAX];
+        property_get("persist.sys.enable-charging-led", value, "0");
+        int enable_charging_led = atoi(value);
+        if (enable_charging_led == 1)
+            set_light = set_light_battery;
+        else
+            return -EINVAL;
+    }
+#endif
     else
         return -EINVAL;
 
